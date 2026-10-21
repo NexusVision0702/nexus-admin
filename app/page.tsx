@@ -20,11 +20,10 @@ function SignupFormContent() {
   const [lastNameKana, setLastNameKana] = useState("");
   const [firstNameKana, setFirstNameKana] = useState("");
 
-  // 生年月日を年・月・日に分割
   const [birthYear, setBirthYear] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthDay, setBirthDay] = useState("");
-  const [gender, setGender] = useState(""); // 性別を追加
+  const [gender, setGender] = useState("");
   
   const [phone, setPhone] = useState("");
   
@@ -163,7 +162,6 @@ function SignupFormContent() {
 
   const fullAddressDisplay = `〒${postalCode} ${prefecture}${city}${street} ${building}`.trim();
 
-  // 年・月・日の選択肢生成
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -171,12 +169,10 @@ function SignupFormContent() {
 
   if (isVerified) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8" translate="no">
         <div className="max-w-2xl w-full space-y-8 text-center">
           <div className="flex justify-center mb-6">
-            <svg className="w-12 h-12 text-amber-500 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
+            <img src="/logo.png" alt="NexusVision株式会社" className="h-28 w-auto object-contain" />
           </div>
           
           <div className="bg-emerald-600 text-white p-10 rounded-2xl shadow-2xl flex flex-col items-center space-y-4 border border-emerald-500">
@@ -195,13 +191,10 @@ function SignupFormContent() {
 
   if (step === "sent") {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8" translate="no">
         <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-          <div className="flex flex-col items-center justify-center mb-6">
-            <svg className="w-10 h-10 text-amber-500 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-            <span className="text-sm font-bold text-gray-800 tracking-wider">NexusVision株式会社</span>
+          <div className="flex justify-center mb-6">
+            <img src="/logo.png" alt="NexusVision株式会社" className="h-28 w-auto object-contain" />
           </div>
           <div className="bg-white py-10 px-6 shadow sm:rounded-lg sm:px-10 border-t-4 border-emerald-600 text-center space-y-6">
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl font-bold">
@@ -222,13 +215,10 @@ function SignupFormContent() {
 
   if (step === "confirm") {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8" translate="no">
         <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-          <div className="flex flex-col items-center justify-center mb-6">
-            <svg className="w-10 h-10 text-amber-500 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-            <span className="text-sm font-bold text-gray-800 tracking-wider">NexusVision株式会社</span>
+          <div className="flex justify-center mb-6">
+            <img src="/logo.png" alt="NexusVision株式会社" className="h-28 w-auto object-contain" />
           </div>
           <h2 className="text-3xl font-extrabold text-gray-900">
             ご入力内容の確認
@@ -303,14 +293,11 @@ function SignupFormContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8" translate="no">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        {/* 会社ロゴの追加 */}
-        <div className="flex flex-col items-center justify-center mb-6">
-          <svg className="w-10 h-10 text-amber-500 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-          </svg>
-          <span className="text-sm font-bold text-gray-800 tracking-wider">NexusVision株式会社</span>
+        {/* 会社ロゴ画像（サイズを1.5倍：h-28に変更） */}
+        <div className="flex justify-center mb-4">
+          <img src="/logo.png" alt="NexusVision株式会社" className="h-28 w-auto object-contain" />
         </div>
 
         <h2 className="text-3xl font-extrabold text-gray-900">
@@ -343,62 +330,60 @@ function SignupFormContent() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              {/* 生年月日（選択式プルダウンへ変更） */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">生年月日</label>
-                <div className="grid grid-cols-3 gap-1">
-                  <select
-                    value={birthYear}
-                    onChange={(e) => setBirthYear(e.target.value)}
-                    required
-                    className="block w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 text-xs bg-white"
-                  >
-                    <option value="">年</option>
-                    {years.map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={birthMonth}
-                    onChange={(e) => setBirthMonth(e.target.value)}
-                    required
-                    className="block w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 text-xs bg-white"
-                  >
-                    <option value="">月</option>
-                    {months.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={birthDay}
-                    onChange={(e) => setBirthDay(e.target.value)}
-                    required
-                    className="block w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 text-xs bg-white"
-                  >
-                    <option value="">日</option>
-                    {days.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* 性別（追加項目） */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">性別</label>
+            {/* 生年月日 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">生年月日</label>
+              <div className="grid grid-cols-3 gap-2">
                 <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
+                  value={birthYear}
+                  onChange={(e) => setBirthYear(e.target.value)}
                   required
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
                 >
-                  <option value="">選択してください</option>
-                  <option value="male">男性</option>
-                  <option value="female">女性</option>
-                  <option value="prefer_not_to_say">回答不可</option>
+                  <option value="">年を選択</option>
+                  {years.map((y) => (
+                    <option key={y} value={y}>{y}年</option>
+                  ))}
+                </select>
+                <select
+                  value={birthMonth}
+                  onChange={(e) => setBirthMonth(e.target.value)}
+                  required
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
+                >
+                  <option value="">月を選択</option>
+                  {months.map((m) => (
+                    <option key={m} value={m}>{m}月</option>
+                  ))}
+                </select>
+                <select
+                  value={birthDay}
+                  onChange={(e) => setBirthDay(e.target.value)}
+                  required
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
+                >
+                  <option value="">日を選択</option>
+                  {days.map((d) => (
+                    <option key={d} value={d}>{d}日</option>
+                  ))}
                 </select>
               </div>
+            </div>
+
+            {/* 性別 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">性別</label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                required
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
+              >
+                <option value="">選択してください</option>
+                <option value="male">男性</option>
+                <option value="female">女性</option>
+                <option value="prefer_not_to_say">回答不可</option>
+              </select>
             </div>
 
             <div>
