@@ -20,7 +20,12 @@ function SignupFormContent() {
   const [lastNameKana, setLastNameKana] = useState("");
   const [firstNameKana, setFirstNameKana] = useState("");
 
-  const [birthdate, setBirthdate] = useState("");
+  // 生年月日を年・月・日に分割
+  const [birthYear, setBirthYear] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthDay, setBirthDay] = useState("");
+  const [gender, setGender] = useState(""); // 性別を追加
+  
   const [phone, setPhone] = useState("");
   
   const [postalCode, setPostalCode] = useState("");
@@ -36,12 +41,17 @@ function SignupFormContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<"form" | "confirm" | "sent">("form");
 
+  const birthdateDisplay = birthYear && birthMonth && birthDay ? `${birthYear}年${birthMonth}月${birthDay}日` : "";
+
   const isFormValid = 
     lastName.trim() !== "" &&
     firstName.trim() !== "" &&
     lastNameKana.trim() !== "" &&
     firstNameKana.trim() !== "" &&
-    birthdate.trim() !== "" &&
+    birthYear !== "" &&
+    birthMonth !== "" &&
+    birthDay !== "" &&
+    gender !== "" &&
     phone.trim() !== "" &&
     postalCode.trim() !== "" &&
     prefecture.trim() !== "" &&
@@ -112,7 +122,8 @@ function SignupFormContent() {
         lastNameKana: lastNameKana.trim(),
         firstNameKana: firstNameKana.trim(),
         furigana: fullNameKana,
-        birthdate: birthdate,
+        birthdate: birthdateDisplay,
+        gender: gender,
         phone: phone.trim(),
         email: email.trim(),
         password: password,
@@ -152,13 +163,20 @@ function SignupFormContent() {
 
   const fullAddressDisplay = `〒${postalCode} ${prefecture}${city}${street} ${building}`.trim();
 
-  // ?verified=true のときの完了画面（ロゴを8倍サイズ h-96 に設定）
+  // 年・月・日の選択肢生成
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
+  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+
   if (isVerified) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl w-full space-y-8 text-center">
           <div className="flex justify-center mb-6">
-            <img src="/logo.png" alt="NexusVision株式会社 ロゴ" className="h-96 w-auto object-contain" />
+            <svg className="w-12 h-12 text-amber-500 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
           </div>
           
           <div className="bg-emerald-600 text-white p-10 rounded-2xl shadow-2xl flex flex-col items-center space-y-4 border border-emerald-500">
@@ -179,8 +197,11 @@ function SignupFormContent() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-          <div className="flex justify-center mb-4">
-            <img src="/logo.png" alt="NexusVision株式会社 ロゴ" className="h-32 w-auto object-contain" />
+          <div className="flex flex-col items-center justify-center mb-6">
+            <svg className="w-10 h-10 text-amber-500 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            <span className="text-sm font-bold text-gray-800 tracking-wider">NexusVision株式会社</span>
           </div>
           <div className="bg-white py-10 px-6 shadow sm:rounded-lg sm:px-10 border-t-4 border-emerald-600 text-center space-y-6">
             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-3xl font-bold">
@@ -203,8 +224,11 @@ function SignupFormContent() {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-          <div className="flex justify-center mb-4">
-            <img src="/logo.png" alt="NexusVision株式会社 ロゴ" className="h-32 w-auto object-contain" />
+          <div className="flex flex-col items-center justify-center mb-6">
+            <svg className="w-10 h-10 text-amber-500 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            <span className="text-sm font-bold text-gray-800 tracking-wider">NexusVision株式会社</span>
           </div>
           <h2 className="text-3xl font-extrabold text-gray-900">
             ご入力内容の確認
@@ -228,10 +252,16 @@ function SignupFormContent() {
               <span className="text-sm font-bold text-gray-800">{lastNameKana} {firstNameKana}</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 border-b pb-3">
+            <div className="grid grid-cols-3 gap-2 border-b pb-3">
               <div>
                 <span className="block text-xs font-medium text-gray-400">生年月日</span>
-                <span className="text-sm font-bold text-gray-800">{birthdate}</span>
+                <span className="text-sm font-bold text-gray-800">{birthdateDisplay}</span>
+              </div>
+              <div>
+                <span className="block text-xs font-medium text-gray-400">性別</span>
+                <span className="text-sm font-bold text-gray-800">
+                  {gender === "male" ? "男性" : gender === "female" ? "女性" : "回答不可"}
+                </span>
               </div>
               <div>
                 <span className="block text-xs font-medium text-gray-400">電話番号</span>
@@ -253,7 +283,7 @@ function SignupFormContent() {
               <button
                 type="button"
                 onClick={() => setStep("form")}
-                className="w-1/2 py-2.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 transition"
+                className="w-1/2 py-2.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-bold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer"
               >
                 修正する
               </button>
@@ -261,7 +291,7 @@ function SignupFormContent() {
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleExecuteSignup}
-                className="w-1/2 py-2.5 px-4 border border-transparent rounded-md shadow-md text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 transition disabled:opacity-50"
+                className="w-1/2 py-2.5 px-4 border border-transparent rounded-md shadow-md text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 transition disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? "送信中..." : "登録して認証メール送信"}
               </button>
@@ -275,8 +305,12 @@ function SignupFormContent() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="flex justify-center mb-4">
-          <img src="/logo.png" alt="NexusVision株式会社 ロゴ" className="h-32 w-auto object-contain" />
+        {/* 会社ロゴの追加 */}
+        <div className="flex flex-col items-center justify-center mb-6">
+          <svg className="w-10 h-10 text-amber-500 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+          </svg>
+          <span className="text-sm font-bold text-gray-800 tracking-wider">NexusVision株式会社</span>
         </div>
 
         <h2 className="text-3xl font-extrabold text-gray-900">
@@ -310,17 +344,67 @@ function SignupFormContent() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              {/* 生年月日（選択式プルダウンへ変更） */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">生年月日</label>
-                <div className="mt-1">
-                  <input type="date" required value={birthdate} onChange={(e) => setBirthdate(e.target.value)} className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">生年月日</label>
+                <div className="grid grid-cols-3 gap-1">
+                  <select
+                    value={birthYear}
+                    onChange={(e) => setBirthYear(e.target.value)}
+                    required
+                    className="block w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 text-xs bg-white"
+                  >
+                    <option value="">年</option>
+                    {years.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={birthMonth}
+                    onChange={(e) => setBirthMonth(e.target.value)}
+                    required
+                    className="block w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 text-xs bg-white"
+                  >
+                    <option value="">月</option>
+                    {months.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={birthDay}
+                    onChange={(e) => setBirthDay(e.target.value)}
+                    required
+                    className="block w-full px-2 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 text-xs bg-white"
+                  >
+                    <option value="">日</option>
+                    {days.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
+
+              {/* 性別（追加項目） */}
               <div>
-                <label className="block text-sm font-medium text-gray-700">電話番号 (自動ハイフン)</label>
-                <div className="mt-1">
-                  <input type="tel" required value={phone} onChange={handlePhoneChange} placeholder="例: 090-1234-5678" maxLength={13} className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">性別</label>
+                <select
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  required
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
+                >
+                  <option value="">選択してください</option>
+                  <option value="male">男性</option>
+                  <option value="female">女性</option>
+                  <option value="prefer_not_to_say">回答不可</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">電話番号 (自動ハイフン)</label>
+              <div className="mt-1">
+                <input type="tel" required value={phone} onChange={handlePhoneChange} placeholder="例: 090-1234-5678" maxLength={13} className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
               </div>
             </div>
 
@@ -357,14 +441,14 @@ function SignupFormContent() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">メールアドレス (ログインID)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">メールアドレス (ログインID)</label>
               <div className="mt-1">
                 <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="例: sample@example.com" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">パスワード (6文字以上)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">パスワード (6文字以上)</label>
               <div className="mt-1">
                 <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
               </div>
