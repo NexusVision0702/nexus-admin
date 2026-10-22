@@ -2,8 +2,8 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { db } from "@/lib/firebase";
-import { collection, doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { docClient, TEMP_USERS_TABLE } from "@/lib/dynamodb";
+import { QueryCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 
 function SignupFormContent() {
   const searchParams = useSearchParams();
@@ -123,35 +123,82 @@ function SignupFormContent() {
     setStep("confirm");
   };
 
+  // ==========================================================
+  // AWS DynamoDB を用いた登録処理（重複チェック ＋ データ保存）
+  // ==========================================================
   const handleExecuteSignup = async () => {
     setError("");
     setIsSubmitting(true);
 
     try {
+      const trimmedEmail = email.trim().toLowerCase();
+      const trimmedPhone = phone.trim();
+
+      // 1. メールアドレスの重複チェック（インデックス利用・カウント取得でコスト最小化）
+      const emailQuery = new QueryCommand({
+        TableName: TEMP_USERS_TABLE,
+        IndexName: "email-index",
+        KeyConditionExpression: "email = :email",
+        ExpressionAttributeValues: {
+          ":email": trimmedEmail,
+        },
+        Select: "COUNT",
+      });
+      const emailResult = await docClient.send(emailQuery);
+      if (emailResult.Count && emailResult.Count > 0) {
+        throw new Error("このメールアドレスはすでに登録（または仮登録）されています。");
+      }
+
+      // 2. 電話番号の重複チェック（インデックス利用・カウント取得でコスト最小化）
+      const phoneQuery = new QueryCommand({
+        TableName: TEMP_USERS_TABLE,
+        IndexName: "phone-index",
+        KeyConditionExpression: "phone = :phone",
+        ExpressionAttributeValues: {
+          ":phone": trimmedPhone,
+        },
+        Select: "COUNT",
+      });
+      const phoneResult = await docClient.send(phoneQuery);
+      if (phoneResult.Count && phoneResult.Count > 0) {
+        throw new Error("この電話番号はすでに登録（または仮登録）されています。");
+      }
+
+      // 3. データ整形と保存用UIDの生成
       const fullName = `${lastName.trim()} ${firstName.trim()}`;
       const fullNameKana = `${lastNameKana.trim()} ${firstNameKana.trim()}`;
       const fullAddress = `〒${postalCode} ${prefecture}${city}${street} ${building}`.trim();
+      const tempUid = "user_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
 
-      const tempRef = doc(collection(db, "tempUsers"));
-      const tempUid = tempRef.id;
-
-      await setDoc(tempRef, {
-        uid: tempUid,
-        lastName: lastName.trim(),
-        firstName: firstName.trim(),
-        name: fullName,
-        lastNameKana: lastNameKana.trim(),
-        firstNameKana: firstNameKana.trim(),
-        furigana: fullNameKana,
-        birthdate: birthdateDisplay,
-        gender: gender,
-        phone: phone.trim(),
-        email: email.trim(),
-        password: password,
-        address: fullAddress,
-        createdAt: serverTimestamp(),
+      // 4. DynamoDB へのデータ保存 (PutCommand)
+      const putCommand = new PutCommand({
+        TableName: TEMP_USERS_TABLE,
+        Item: {
+          uid: tempUid,
+          lastName: lastName.trim(),
+          firstName: firstName.trim(),
+          name: fullName,
+          lastNameKana: lastNameKana.trim(),
+          firstNameKana: firstNameKana.trim(),
+          furigana: fullNameKana,
+          birthdate: birthdateDisplay,
+          gender: gender,
+          phone: trimmedPhone,
+          email: trimmedEmail,
+          password: password,
+          postalCode: postalCode,
+          prefecture: prefecture,
+          city: city,
+          street: street,
+          building: building,
+          address: fullAddress,
+          createdAt: new Date().toISOString(),
+        },
       });
 
+      await docClient.send(putCommand);
+
+      // 5. 認証メール送信APIの呼び出し
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
       const verificationUrl = `${baseUrl}/verify?uid=${tempUid}`;
 
@@ -161,7 +208,7 @@ function SignupFormContent() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: email.trim(),
+          email: trimmedEmail,
           verificationUrl: verificationUrl,
           name: fullName,
         }),
@@ -174,7 +221,7 @@ function SignupFormContent() {
 
       setStep("sent");
     } catch (err: any) {
-      console.error("登録エラー:", err);
+      console.error("AWS登録エラー:", err);
       setError("登録処理に失敗しました: " + (err.message || "入力内容をご確認ください。"));
       setStep("form");
     } finally {
@@ -338,16 +385,16 @@ function SignupFormContent() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">お名前 (漢字)</label>
               <div className="grid grid-cols-2 gap-4">
-                <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="姓 (例: 山田)" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
-                <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="名 (例: 太郎)" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="姓 (例: 山田)" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="名 (例: 太郎)" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">フリガナ</label>
               <div className="grid grid-cols-2 gap-4">
-                <input type="text" required value={lastNameKana} onChange={(e) => setLastNameKana(e.target.value)} placeholder="セイ (例: ヤマダ)" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
-                <input type="text" required value={firstNameKana} onChange={(e) => setFirstNameKana(e.target.value)} placeholder="メイ (例: タロウ)" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                <input type="text" required value={lastNameKana} onChange={(e) => setLastNameKana(e.target.value)} placeholder="セイ (例: ヤマダ)" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                <input type="text" required value={firstNameKana} onChange={(e) => setFirstNameKana(e.target.value)} placeholder="メイ (例: タロウ)" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
               </div>
             </div>
 
@@ -359,7 +406,7 @@ function SignupFormContent() {
                   value={birthYear}
                   onChange={(e) => setBirthYear(e.target.value)}
                   required
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
                 >
                   <option value="">年を選択</option>
                   {years.map((y) => (
@@ -370,7 +417,7 @@ function SignupFormContent() {
                   value={birthMonth}
                   onChange={(e) => setBirthMonth(e.target.value)}
                   required
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
                 >
                   <option value="">月を選択</option>
                   {months.map((m) => (
@@ -381,7 +428,7 @@ function SignupFormContent() {
                   value={birthDay}
                   onChange={(e) => setBirthDay(e.target.value)}
                   required
-                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
                 >
                   <option value="">日を選択</option>
                   {days.map((d) => (
@@ -398,7 +445,7 @@ function SignupFormContent() {
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
                 required
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm bg-white"
               >
                 <option value="">選択してください</option>
                 <option value="male">男性</option>
@@ -410,7 +457,7 @@ function SignupFormContent() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">電話番号 (自動ハイフン)</label>
               <div className="mt-1">
-                <input type="tel" required value={phone} onChange={handlePhoneChange} placeholder="例: 090-1234-5678" maxLength={13} className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                <input type="tel" required value={phone} onChange={handlePhoneChange} placeholder="例: 090-1234-5678" maxLength={13} className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
               </div>
             </div>
 
@@ -420,43 +467,43 @@ function SignupFormContent() {
               <div>
                 <label className="block text-xs font-medium text-gray-600">郵便番号 (7桁入力で自動反映)</label>
                 <div className="mt-1">
-                  <input type="text" required value={postalCode} onChange={handlePostalCodeChange} placeholder="例: 9800021" maxLength={8} className="appearance-none block w-full sm:w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                  <input type="text" required value={postalCode} onChange={handlePostalCodeChange} placeholder="例: 9800021" maxLength={8} className="appearance-none block w-full sm:w-1/2 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-medium text-gray-600">都道府県</label>
-                  <input type="text" required value={prefecture} onChange={(e) => setPrefecture(e.target.value)} placeholder="自動入力" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                  <input type="text" required value={prefecture} onChange={(e) => setPrefecture(e.target.value)} placeholder="自動入力" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600">市区町村・町域</label>
-                  <input type="text" required value={city} onChange={(e) => setCity(e.target.value)} placeholder="自動入力" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                  <input type="text" required value={city} onChange={(e) => setCity(e.target.value)} placeholder="自動入力" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-gray-600">それ以降の住所 (番地など)</label>
-                <input type="text" required value={street} onChange={(e) => setStreet(e.target.value)} placeholder="例: 中央1-1-1" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                <input type="text" required value={street} onChange={(e) => setStreet(e.target.value)} placeholder="例: 中央1-1-1" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-gray-600">建物名・部屋番号 (任意)</label>
-                <input type="text" value={building} onChange={(e) => setBuilding(e.target.value)} placeholder="例: 〇〇ビル 302号室" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                <input type="text" value={building} onChange={(e) => setBuilding(e.target.value)} placeholder="例: 〇〇ビル 302号室" className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 bg-white focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">メールアドレス (ログインID)</label>
               <div className="mt-1">
-                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="例: sample@example.com" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="例: sample@example.com" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">パスワード (6文字以上)</label>
               <div className="mt-1">
-                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
+                <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm" />
               </div>
             </div>
 
@@ -654,7 +701,7 @@ NexusVision株式会社（以下「当社」といいます。）は、当社が
 （２）前号の場合および法令に基づき開示が求められた場合等、正当な理由がある場合を除き、当社はユーザーの同意を得ることなく第三者へ個人情報を提供することはありません。
 
 ４．安全管理措置
-当社は、個人情報の漏洩、滅失または毀損の防止その他の安全管理のため、アクセス制限の実施、外部からの不正アクセス防止システムの導入、および役員・従業員に対する適切な監督・教育等、必要かつ適切な措置を講じます。
+当社は、個人情報の漏洩、滅失または毀損の防止その他の安全管理のため、アクセス制限の実施、外部からの不正アクセスシステムの導入、および役員・従業員に対する適切な監督・教育等、必要かつ適切な措置を講じます。
 
 ５．アカウント削除（退会）とデータの保管
 (1)ユーザーは、本サービス内の設定画面よりいつでも共通アカウントの削除（退会）手続きを行うことができます。アカウントを削除した場合、連携する各種サービスもご利用いただけなくなります。
