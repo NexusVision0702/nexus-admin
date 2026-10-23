@@ -1,0 +1,23 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        # Amplifyの環境変数をNext.jsが読める .env.production に書き出す
+        - echo "MY_AWS_ACCESS_KEY_ID=$MY_AWS_ACCESS_KEY_ID" >> .env.production
+        - echo "MY_AWS_SECRET_ACCESS_KEY=$MY_AWS_SECRET_ACCESS_KEY" >> .env.production
+        - echo "MY_AWS_REGION=$MY_AWS_REGION" >> .env.production
+        - echo "RESEND_API_KEY=$RESEND_API_KEY" >> .env.production
+        - echo "NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL" >> .env.production
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    outputs:
+      - file: '**'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
