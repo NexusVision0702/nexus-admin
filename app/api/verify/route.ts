@@ -1,66 +1,69 @@
 import { NextResponse } from 'next/server';
-import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
+import { docClient, TEMP_USERS_TABLE } from '@/lib/dynamodb';
+import { GetCommand, DeleteCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+
+// 本登録用のテーブル名
+const USERS_TABLE = "NexusVisionUsers";
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
-    const uid = url.searchParams.get('uid');
+    const email = url.searchParams.get('email');
 
-    if (!uid) {
-      return NextResponse.json({ error: 'ユーザーIDが指定されていません。' }, { status: 400 });
+    if (!email) {
+      return NextResponse.json({ error: 'メールアドレスが指定されていません。' }, { status: 400 });
     }
 
-    const adminDb = getAdminDb();
-    const adminAuth = getAdminAuth();
+    // 1. 一時保存テーブルからデータを取得
+    const getCommand = new GetCommand({
+      TableName: TEMP_USERS_TABLE,
+      Key: { email: email },
+    });
 
-    // 1. 一時データ (tempUsers) からデータを取得
-    const tempUserRef = adminDb.collection('tempUsers').doc(uid);
-    const tempUserDoc = await tempUserRef.get();
+    const { Item: tempUser } = await docClient.send(getCommand);
 
-    if (!tempUserDoc.exists) {
+    if (!tempUser) {
       return NextResponse.json({ error: '無効な認証リンクであるか、すでに有効期限が切れています。' }, { status: 400 });
     }
 
-    const userData = tempUserDoc.data();
-    if (!userData) {
-      return NextResponse.json({ error: 'ユーザーデータが見つかりません。' }, { status: 400 });
+    // 有効期限チェック（10分）
+    if (tempUser.expiresAt && Date.now() > tempUser.expiresAt) {
+      await docClient.send(new DeleteCommand({
+        TableName: TEMP_USERS_TABLE,
+        Key: { email: email },
+      }));
+      return NextResponse.json({ error: '認証の有効期限が切れています。' }, { status: 400 });
     }
 
-    const { email, password, name, furigana, birthdate, phone, address } = userData;
+    const userData = tempUser.userData || {};
+    const { password, name, furigana, birthdate, phone, address } = userData;
 
-    // 2. Firebase Auth に本番ユーザーを作成
-    let userRecord;
-    try {
-      userRecord = await adminAuth.createUser({
+    // 2. 本登録テーブル (NexusVisionUsers) へ保存
+    const putCommand = new PutCommand({
+      TableName: USERS_TABLE,
+      Item: {
         email: email,
-        password: password,
-        displayName: name || '',
-      });
-    } catch (authError: any) {
-      console.error('Auth作成エラー:', authError);
-    }
+        name: name || '',
+        furigana: furigana || '',
+        birthdate: birthdate || '',
+        phone: phone || '',
+        address: address || '',
+        password: password || '',
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    });
 
-    const targetUid = userRecord ? userRecord.uid : uid;
+    await docClient.send(putCommand);
 
-    // 3. 登録データを `users` コレクションに正式保存（パスワード含む）
-    await adminDb.collection('users').doc(targetUid).set({
-      uid: targetUid,
-      name: name || '',
-      furigana: furigana || '',
-      birthdate: birthdate || '',
-      phone: phone || '',
-      address: address || '',
-      email: email,
-      password: password || '', // ← ここでパスワードを確実に保存
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }, { merge: true });
+    // 3. 一時データを削除
+    await docClient.send(new DeleteCommand({
+      TableName: TEMP_USERS_TABLE,
+      Key: { email: email },
+    }));
 
-    // 4. 一時データ (tempUsers) を削除
-    await tempUserRef.delete();
-
-    // 5. 登録完了画面（/?verified=true）へリダイレクト
+    // 4. 登録完了画面へリダイレクト
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || url.origin;
     return NextResponse.redirect(`${baseUrl}/?verified=true`);
 
