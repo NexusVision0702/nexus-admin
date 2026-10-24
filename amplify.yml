@@ -6,9 +6,7 @@ frontend:
         - npm ci
     build:
       commands:
-        - echo "MY_AWS_ACCESS_KEY_ID=\"$MY_AWS_ACCESS_KEY_ID\"" >> .env.production
-        - echo "MY_AWS_SECRET_ACCESS_KEY=\"$MY_AWS_SECRET_ACCESS_KEY\"" >> .env.production
-        - echo "MY_AWS_REGION=\"$MY_AWS_REGION\"" >> .env.production
+        - node -e 'const fs=require("fs"); let f=fs.readFileSync("lib/dynamodb.ts","utf8"); f=f.replace("PLACEHOLDER_ACCESS_KEY", process.env.MY_AWS_ACCESS_KEY_ID).replace("PLACEHOLDER_SECRET_KEY", process.env.MY_AWS_SECRET_ACCESS_KEY); fs.writeFileSync("lib/dynamodb.ts", f);'
         - npm run build
   artifacts:
     baseDirectory: .next
