@@ -1,75 +1,73 @@
 import { NextResponse } from 'next/server';
-import { docClient, TEMP_USERS_TABLE } from '@/lib/dynamodb';
-import { GetCommand, DeleteCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { docClient, TEMP_USERS_TABLE, USERS_TABLE } from '@/lib/dynamodb';
+import { QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { sendRegistrationEmail } from '@/lib/email';
 
-// 本登録用のテーブル名（NexusVisionUsers）
-const USERS_TABLE = "NexusVisionUsers";
-
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   try {
-    const url = new URL(request.url);
-    // メールリンクから渡される email を取得
-    const email = url.searchParams.get('email');
+    const body = await request.json();
+    const { email, password, name, furigana, birthdate, phone, address } = body;
 
-    if (!email) {
-      return NextResponse.json({ error: 'メールアドレスが指定されていません。' }, { status: 400 });
+    if (!email || !password || !name || !phone) {
+      return NextResponse.json({ error: '必須項目が不足しています。' }, { status: 400 });
     }
 
-    // 1. NexusTempUsers から email をキーにして一時データを取得
-    const getCommand = new GetCommand({
-      TableName: TEMP_USERS_TABLE,
-      Key: { email: email },
-    });
-
-    const { Item: tempUser } = await docClient.send(getCommand);
-
-    if (!tempUser) {
-      return NextResponse.json({ error: '無効な認証リンクであるか、すでに有効期限が切れています。' }, { status: 400 });
-    }
-
-    // 有効期限のチェック（10分超過など）
-    if (tempUser.expiresAt && Date.now() > tempUser.expiresAt) {
-      await docClient.send(new DeleteCommand({
-        TableName: TEMP_USERS_TABLE,
-        Key: { email: email },
-      }));
-      return NextResponse.json({ error: '認証の有効期限が切れています。' }, { status: 400 });
-    }
-
-    const userData = tempUser.userData || {};
-    const { password, name, furigana, birthdate, phone, address } = userData;
-
-    // 2. 本登録テーブル (NexusVisionUsers) へデータを保存
-    const putCommand = new PutCommand({
+    // 重複チェック: 本登録テーブル (NexusVisionUsers) ですでに email または phone が使われていないか確認
+    const emailCheck = await docClient.send(new QueryCommand({
       TableName: USERS_TABLE,
+      IndexName: 'email-index',
+      KeyConditionExpression: 'email = :email',
+      ExpressionAttributeValues: { ':email': email },
+    }));
+
+    if (emailCheck.Items && emailCheck.Items.length > 0) {
+      return NextResponse.json({ error: 'このメールアドレスはすでに登録されています。' }, { status: 400 });
+    }
+
+    const phoneCheck = await docClient.send(new QueryCommand({
+      TableName: USERS_TABLE,
+      IndexName: 'phone-index',
+      KeyConditionExpression: 'phone = :phone',
+      ExpressionAttributeValues: { ':phone': phone },
+    }));
+
+    if (phoneCheck.Items && phoneCheck.Items.length > 0) {
+      return NextResponse.json({ error: 'この電話番号はすでに登録されています。' }, { status: 400 });
+    }
+
+    // 有効期限（15分後：秒単位）
+    const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60;
+
+    // 一時データテーブル (NexusTempUsers) に保存
+    const putCommand = new PutCommand({
+      TableName: TEMP_USERS_TABLE,
       Item: {
-        email: email, // パーティションキー
-        name: name || '',
-        furigana: furigana || '',
-        birthdate: birthdate || '',
-        phone: phone || '',
-        address: address || '',
-        password: password || '',
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        email: email,
+        expiresAt: expiresAt,
+        userData: {
+          password,
+          name,
+          furigana,
+          birthdate,
+          phone,
+          address,
+        },
       },
     });
 
     await docClient.send(putCommand);
 
-    // 3. 一時データ (NexusTempUsers) を削除
-    await docClient.send(new DeleteCommand({
-      TableName: TEMP_USERS_TABLE,
-      Key: { email: email },
-    }));
+    // 認証リンクの生成
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://account.nexus-vision.net';
+    const verificationUrl = `${baseUrl}/api/verify?email=${encodeURIComponent(email)}`;
 
-    // 4. 登録完了画面（/?verified=true）へリダイレクト
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || url.origin;
-    return NextResponse.redirect(`${baseUrl}/?verified=true`);
+    // 確認メールの送信
+    await sendRegistrationEmail(email, name, verificationUrl);
+
+    return NextResponse.json({ success: true, message: '確認メールを送信しました。' });
 
   } catch (error: any) {
-    console.error('本登録エラー:', error);
-    return NextResponse.json({ error: '本登録の処理中にエラーが発生しました。' }, { status: 500 });
+    console.error('確認メール送信エラー:', error);
+    return NextResponse.json({ error: '確認メールの送信に失敗しました: ' + (error.message || '') }, { status: 500 });
   }
 }
