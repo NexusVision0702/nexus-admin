@@ -6,10 +6,24 @@ import { sendRegistrationEmail } from '@/lib/email';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, name, furigana, birthdate, phone, address } = body;
+    
+    // ★ブラウザから実際にどんなデータが送られてきているかをサーバーのログに出力する
+    console.log('【受信したリクエストボディ】:', body);
 
-    if (!email || !password || !name || !phone) {
-      return NextResponse.json({ error: '必須項目が不足しています。' }, { status: 400 });
+    const { email, password, name, phone } = body;
+
+    // どの項目が不足しているか詳細にエラーを返すようにする
+    if (!email) {
+      return NextResponse.json({ error: 'メールアドレスが不足しています。' }, { status: 400 });
+    }
+    if (!password) {
+      return NextResponse.json({ error: 'パスワードが不足しています。' }, { status: 400 });
+    }
+    if (!name) {
+      return NextResponse.json({ error: 'お名前が不足しています。' }, { status: 400 });
+    }
+    if (!phone) {
+      return NextResponse.json({ error: '電話番号が不足しています。' }, { status: 400 });
     }
 
     // 重複チェック: 本登録テーブル (NexusVisionUsers) ですでに email または phone が使われていないか確認
@@ -44,14 +58,7 @@ export async function POST(request: Request) {
       Item: {
         email: email,
         expiresAt: expiresAt,
-        userData: {
-          password,
-          name,
-          furigana,
-          birthdate,
-          phone,
-          address,
-        },
+        userData: body, // 送られてきたデータをそのまま一時保存
       },
     });
 
