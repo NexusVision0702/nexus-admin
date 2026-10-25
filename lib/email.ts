@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY as string);
 
 export async function sendMfaEmail(toEmail: string, code: string) {
   try {
@@ -16,7 +16,7 @@ export async function sendMfaEmail(toEmail: string, code: string) {
           <div style="background: #f3f4f6; padding: 15px; font-size: 24px; font-weight: bold; letter-spacing: 5px; text-align: center; margin: 20px 0; border-radius: 8px;">
             ${code}
           </div>
-          <p style="font-size: 12px; color: #666;">※このコードの有効期限は短時間です。心当たりがない場合は、このメールを無視してください。</p>
+          <p style="font-size: 12px; color: #666;">※このコードの有効期限は15分です。心当たりがない場合は、このメールを無視してください。</p>
         </div>
       `,
     });

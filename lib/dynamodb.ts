@@ -10,4 +10,7 @@ const client = new DynamoDBClient({
 });
 
 export const docClient = DynamoDBDocumentClient.from(client);
+
+// テーブル名の定義
 export const TEMP_USERS_TABLE = "NexusTempUsers";
+export const USERS_TABLE = "NexusVisionUsers";

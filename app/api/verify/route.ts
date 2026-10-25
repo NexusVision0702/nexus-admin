@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
-import { docClient, TEMP_USERS_TABLE } from '@/lib/dynamodb';
+import { docClient, TEMP_USERS_TABLE, USERS_TABLE } from '@/lib/dynamodb';
 import { GetCommand, DeleteCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-
-// 本登録用のテーブル名
-const USERS_TABLE = "NexusVisionUsers";
 
 export async function GET(request: Request) {
   try {
@@ -26,8 +23,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: '無効な認証リンクであるか、すでに有効期限が切れています。' }, { status: 400 });
     }
 
-    // 有効期限チェック（10分）
-    if (tempUser.expiresAt && Date.now() > tempUser.expiresAt) {
+    // 有効期限チェック（15分：秒単位で比較）
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (tempUser.expiresAt && nowSec > tempUser.expiresAt) {
       await docClient.send(new DeleteCommand({
         TableName: TEMP_USERS_TABLE,
         Key: { email: email },
