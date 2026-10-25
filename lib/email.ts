@@ -1,8 +1,8 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY as string);
-
 export async function sendMfaEmail(toEmail: string, code: string) {
+  const resend = new Resend(process.env.RESEND_API_KEY as string);
+  
   try {
     const { error } = await resend.emails.send({
       from: 'NexusVision <support@Nexus-vision.net>',
@@ -34,6 +34,8 @@ export async function sendMfaEmail(toEmail: string, code: string) {
 }
 
 export async function sendRegistrationEmail(toEmail: string, name: string, verificationUrl: string) {
+  const resend = new Resend(process.env.RESEND_API_KEY as string);
+
   try {
     const { error } = await resend.emails.send({
       from: 'NexusVision株式会社 <support@Nexus-vision.net>',
