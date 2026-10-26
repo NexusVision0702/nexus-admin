@@ -6,7 +6,7 @@ export async function sendMfaEmail(toEmail: string, code: string) {
   
   try {
     const { error } = await resend.emails.send({
-      from: 'NexusVision <onboarding@resend.dev>',
+      from: 'NexusVision <support@nexus-vision.net>', // ← ここを変更
       to: [toEmail],
       subject: '【NexusVision】管理者ログイン 認証コード',
       html: `
@@ -30,7 +30,7 @@ export async function sendMfaEmail(toEmail: string, code: string) {
     return { success: true };
   } catch (err: any) {
     console.error('Resendメール送信例外:', err);
-    throw new Error('メールの送信イン失敗しました: ' + (err.message || ''));
+    throw new Error('メールの送信に失敗しました: ' + (err.message || ''));
   }
 }
 
@@ -40,7 +40,7 @@ export async function sendRegistrationEmail(toEmail: string, name: string, verif
 
   try {
     const { error } = await resend.emails.send({
-      from: 'NexusVision株式会社 <onboarding@resend.dev>',
+      from: 'NexusVision株式会社 <support@nexus-vision.net>', // ← ここを変更
       to: [toEmail],
       subject: '【NexusVision】会員登録の確認（メールアドレス認証）',
       html: `
