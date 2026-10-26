@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { docClient, TEMP_USERS_TABLE, USERS_TABLE } from '@/lib/dynamodb';
-import { QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { sendRegistrationEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
@@ -8,20 +8,20 @@ export async function POST(request: Request) {
     const body = await request.json();
     
     // 受信したデータをサーバーのログに出力
-    console.log('【受信したリクエストボディ】:', JSON.stringify(body, null, 2));
+    console.log('【受信したリクエストボディ全データ】:', JSON.stringify(body, null, 2));
 
-    // フロントエンド側でどのようなキー名で送られてきても安全に拾えるようにする
-    const email = body.email || body.mail || body.userEmail;
-    const password = body.password || body.pass || body.pwd || body.userPassword;
+    // フロントエンド側でどのようなキー名で送られてきても絶対に値を取り逃がさないようにする
+    const email = body.email || body.mail || body.userEmail || body.userData?.email;
+    const password = body.password || body.pass || body.pwd || body.userPassword || body.userData?.password;
     
-    const name = body.name || body.userName || body.fullName || 
+    const name = body.name || body.userName || body.fullName || body.userData?.name ||
       (body.lastName && body.firstName ? `${body.lastName} ${body.firstName}` : '') ||
       (body.sei && body.mei ? `${body.sei} ${body.mei}` : '') ||
       (body.kanjiLastName && body.kanjiFirstName ? `${body.kanjiLastName} ${body.kanjiFirstName}` : '');
 
-    const phone = body.phone || body.tel || body.phoneNumber || body.mobile;
+    const phone = body.phone || body.tel || body.phoneNumber || body.mobile || body.userData?.phone;
 
-    // バリデーションチェック
+    // 必須項目のチェック
     if (!email) {
       return NextResponse.json({ error: 'メールアドレスが不足しています。' }, { status: 400 });
     }
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     }));
 
     if (emailCheck.Items && emailCheck.Items.length > 0) {
-      return NextResponse.json({ error: 'このメールアドレスはすでに登録されています。' }, { status: 400 });
+      return NextResponse.json({ error: 'このメールアドレスはすでに本登録されています。' }, { status: 400 });
     }
 
     const phoneCheck = await docClient.send(new QueryCommand({
@@ -55,8 +55,14 @@ export async function POST(request: Request) {
     }));
 
     if (phoneCheck.Items && phoneCheck.Items.length > 0) {
-      return NextResponse.json({ error: 'この電話番号はすでに登録されています。' }, { status: 400 });
+      return NextResponse.json({ error: 'この電話番号はすでに本登録されています。' }, { status: 400 });
     }
+
+    // テスト時に仮登録データが残っていて進めなくならないよう、既存の仮登録データは自動でクリアして上書き許可する
+    await docClient.send(new DeleteCommand({
+      TableName: TEMP_USERS_TABLE,
+      Key: { email: email },
+    })).catch(() => {});
 
     // 有効期限（15分後：秒単位）
     const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60;
