@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import TermsModal from "@/components/TermsModal"; // ← 共通部品をインポート
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -13,6 +14,14 @@ export default function SignupPage() {
     password: "",
     address: "",
   });
+
+  // 同意チェックボックス用の状態
+  const [agreedTerms, setAgreedTerms] = useState(false);
+  const [agreedAdult, setAgreedAdult] = useState(false);
+  const [agreedAntiSocial, setAgreedAntiSocial] = useState(false);
+
+  // 規約モーダルの表示・非表示の状態
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -26,10 +35,16 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
     setMessage("");
+
+    // すべてのチェックが入っているか確認
+    if (!agreedTerms || !agreedAdult || !agreedAntiSocial) {
+      setError("すべての項目に同意・確認の上、チェックを入れてください。");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // サーバー側の確認メール送信＆仮登録APIを呼び出す
       const response = await fetch("/api/send-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,7 +66,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <h2 className="text-center text-3xl font-extrabold text-gray-900">
           新規会員登録
@@ -159,13 +174,74 @@ export default function SignupPage() {
                 />
               </div>
 
+              {/* --- チェックボックスエリア（大きさを完全に統一） --- */}
+              <div className="space-y-4 pt-2 border-t border-gray-200">
+                {/* 1. 利用規約 */}
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    checked={agreedTerms}
+                    onChange={(e) => setAgreedTerms(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 text-green-600 border-gray-300 rounded focus:ring-green-500 flex-shrink-0"
+                    required
+                  />
+                  <label htmlFor="terms" className="text-xs sm:text-sm text-gray-700">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(true)}
+                      className="text-green-600 underline font-medium hover:text-green-800"
+                    >
+                      利用規約・プライバシーポリシー
+                    </button>{" "}
+                    に同意します
+                    <span className="block text-amber-600 text-xs mt-0.5">
+                      ※先に上のリンクをクリックして規約内容をご確認ください
+                    </span>
+                  </label>
+                </div>
+
+                {/* 2. 未成年者 */}
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="adult"
+                    checked={agreedAdult}
+                    onChange={(e) => setAgreedAdult(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 text-green-600 border-gray-300 rounded focus:ring-green-500 flex-shrink-0"
+                    required
+                  />
+                  <label htmlFor="adult" className="text-xs sm:text-sm text-gray-700 cursor-pointer">
+                    わたしは未成年者ではありません
+                    <span className="block text-gray-500 text-xs mt-0.5">
+                      (未成年の場合：法定代理人の許可が取れています)
+                    </span>
+                  </label>
+                </div>
+
+                {/* 3. 反社会的勢力 */}
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="antisocial"
+                    checked={agreedAntiSocial}
+                    onChange={(e) => setAgreedAntiSocial(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 text-green-600 border-gray-300 rounded focus:ring-green-500 flex-shrink-0"
+                    required
+                  />
+                  <label htmlFor="antisocial" className="text-xs sm:text-sm text-gray-700 cursor-pointer">
+                    暴力団等の反社会的勢力に該当せず、また将来にわたっても該当しないことを表明し、保証します
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <button
                   type="submit"
                   disabled={loading}
                   className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
                 >
-                  {loading ? "送信中..." : "登録確認メールを送信"}
+                  {loading ? "送信中..." : "入力内容を確認する"}
                 </button>
               </div>
             </form>
@@ -178,6 +254,9 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
+
+      {/* --- 利用規約・プライバシーポリシーモーダル（部品化してスッキリ） --- */}
+      <TermsModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }

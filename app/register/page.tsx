@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import TermsModal from "@/components/TermsModal";
 
 function SignupFormContent() {
   const searchParams = useSearchParams();
@@ -114,9 +115,6 @@ function SignupFormContent() {
     setStep("confirm");
   };
 
-  // ==========================================================
-  // サーバーAPIへ入力データを送信する処理
-  // ==========================================================
   const handleExecuteSignup = async () => {
     setError("");
     setIsSubmitting(true);
@@ -414,7 +412,7 @@ function SignupFormContent() {
 
             <div className="pt-2 space-y-3">
               <label className={`flex items-start space-x-3 ${!hasOpenedTerms ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
-                <input type="checkbox" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} disabled={!hasOpenedTerms} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed" required />
+                <input type="checkbox" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} disabled={!hasOpenedTerms} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed flex-shrink-0" required />
                 <span className="text-sm text-gray-700 leading-relaxed">
                   <button type="button" onClick={handleOpenTermsModal} className="text-emerald-600 underline hover:text-emerald-800 font-medium focus:outline-none cursor-pointer">
                     利用規約・プライバシーポリシー
@@ -429,7 +427,7 @@ function SignupFormContent() {
               </label>
 
               <label className="flex items-start space-x-3 cursor-pointer">
-                <input type="checkbox" checked={notMinor} onChange={(e) => setNotMinor(e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" required />
+                <input type="checkbox" checked={notMinor} onChange={(e) => setNotMinor(e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer flex-shrink-0" required />
                 <span className="text-sm text-gray-700 leading-relaxed">
                   わたしは未成年者ではありません
                   <span className="block text-xs text-gray-500 mt-0.5">(未成年の場合：法定代理人の許可が取れています)</span>
@@ -437,7 +435,7 @@ function SignupFormContent() {
               </label>
 
               <label className="flex items-start space-x-3 cursor-pointer">
-                <input type="checkbox" checked={notAntiSocial} onChange={(e) => setNotAntiSocial(e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer" required />
+                <input type="checkbox" checked={notAntiSocial} onChange={(e) => setNotAntiSocial(e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer flex-shrink-0" required />
                 <span className="text-sm text-gray-700 leading-relaxed">
                   暴力団等の反社会的勢力に該当せず、また将来にわたっても該当しないことを表明し、保証します
                 </span>
@@ -461,22 +459,7 @@ function SignupFormContent() {
         </div>
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">利用規約・プライバシーポリシー</h3>
-              <button type="button" onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl font-bold px-2 cursor-pointer">✕</button>
-            </div>
-            <div className="px-6 py-4 overflow-y-auto text-sm text-gray-700 space-y-4 leading-relaxed whitespace-pre-line">
-              {`◆利用規約◆\n... (規約本文省略せずそのまま記述)`}
-            </div>
-            <div className="px-6 py-3 border-t border-gray-200 flex justify-end">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="bg-emerald-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-emerald-700 transition cursor-pointer">閉じる</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <TermsModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
