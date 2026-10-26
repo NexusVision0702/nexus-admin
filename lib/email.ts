@@ -1,9 +1,9 @@
 import { Resend } from 'resend';
 
-// サーバーサイド専用なので、ここで直接環境変数を渡してOKです
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function sendMfaEmail(toEmail: string, code: string) {
+  // 関数が実行されたタイミングで環境変数を読み込んで初期化する
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  
   try {
     const { error } = await resend.emails.send({
       from: 'NexusVision <support@nexus-vision.net>',
@@ -35,6 +35,9 @@ export async function sendMfaEmail(toEmail: string, code: string) {
 }
 
 export async function sendRegistrationEmail(toEmail: string, name: string, verificationUrl: string) {
+  // 関数が実行されたタイミングで環境変数を読み込んで初期化する
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
   try {
     const { error } = await resend.emails.send({
       from: 'NexusVision株式会社 <support@nexus-vision.net>',
