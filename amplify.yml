@@ -6,7 +6,6 @@ frontend:
         - npm ci
     build:
       commands:
-        - node -e "const fs=require('fs'); let f=fs.readFileSync('lib/email.ts','utf8'); f=f.replace('PLACEHOLDER_RESEND_KEY', process.env.RESEND_API_KEY); fs.writeFileSync('lib/email.ts', f);"
         - npm run build
   artifacts:
     baseDirectory: .next

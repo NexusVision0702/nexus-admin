@@ -1,12 +1,12 @@
 import { Resend } from 'resend';
 
+// サーバーサイド専用なので、ここで直接環境変数を渡してOKです
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 export async function sendMfaEmail(toEmail: string, code: string) {
-  const apiKey = "PLACEHOLDER_RESEND_KEY";
-  const resend = new Resend(apiKey);
-  
   try {
     const { error } = await resend.emails.send({
-      from: 'NexusVision <support@nexus-vision.net>', // ← ここを変更
+      from: 'NexusVision <support@nexus-vision.net>',
       to: [toEmail],
       subject: '【NexusVision】管理者ログイン 認証コード',
       html: `
@@ -35,12 +35,9 @@ export async function sendMfaEmail(toEmail: string, code: string) {
 }
 
 export async function sendRegistrationEmail(toEmail: string, name: string, verificationUrl: string) {
-  const apiKey = "PLACEHOLDER_RESEND_KEY";
-  const resend = new Resend(apiKey);
-
   try {
     const { error } = await resend.emails.send({
-      from: 'NexusVision株式会社 <support@nexus-vision.net>', // ← ここを変更
+      from: 'NexusVision株式会社 <support@nexus-vision.net>',
       to: [toEmail],
       subject: '【NexusVision】会員登録の確認（メールアドレス認証）',
       html: `
