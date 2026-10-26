@@ -2,19 +2,9 @@ import { NextResponse } from 'next/server';
 import { docClient, TEMP_USERS_TABLE, USERS_TABLE } from '@/lib/dynamodb';
 import { QueryCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { sendRegistrationEmail } from '@/lib/email';
+import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
-  // --- ▼▼▼ デバッグログ（本番の環境変数チェック用） ▼▼▼ ---
-  console.log("=== AWS ENV DEBUG START ===");
-  console.log("REGION:", process.env.MY_AWS_REGION);
-  console.log("ACCESS_KEY_ID exists:", !!process.env.MY_AWS_ACCESS_KEY_ID);
-  console.log("ACCESS_KEY_ID length:", process.env.MY_AWS_ACCESS_KEY_ID?.length);
-  console.log("ACCESS_KEY_ID prefix:", process.env.MY_AWS_ACCESS_KEY_ID?.substring(0, 4));
-  console.log("SECRET_ACCESS_KEY exists:", !!process.env.MY_AWS_SECRET_ACCESS_KEY);
-  console.log("SECRET_ACCESS_KEY length:", process.env.MY_AWS_SECRET_ACCESS_KEY?.length);
-  console.log("=== AWS ENV DEBUG END ===");
-  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
   try {
     const body = await request.json();
     
@@ -23,12 +13,20 @@ export async function POST(request: Request) {
     const name = body.name;
     const phone = body.phone;
 
-    // 必須項目のチェック
+    // 1. 必須項目のチェック
     if (!email || !password || !name || !phone) {
       return NextResponse.json({ error: '必須項目が不足しています。' }, { status: 400 });
     }
 
-    // 重複チェック: 本登録テーブル (NexusVisionUsers) ですでに email または phone が使われていないか確認
+    // 2. サーバー側での入力値バリデーション
+    if (typeof email !== 'string' || !email.includes('@')) {
+      return NextResponse.json({ error: '有効なメールアドレスを入力してください。' }, { status: 400 });
+    }
+    if (typeof password !== 'string' || password.length < 6) {
+      return NextResponse.json({ error: 'パスワードは6文字以上で入力してください。' }, { status: 400 });
+    }
+
+    // 3. 重複チェック: 本登録テーブル (NexusVisionUsers) ですでに email または phone が使われていないか確認
     const emailCheck = await docClient.send(new QueryCommand({
       TableName: USERS_TABLE,
       IndexName: 'email-index',
@@ -51,7 +49,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'この電話番号はすでに登録されています。' }, { status: 400 });
     }
 
-    // 既存の仮登録データがあれば一旦削除（テストのしやすさのため）
+    // 4. パスワードのハッシュ化（平文保存を防ぐため、ここで強力に暗号化）
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // ハッシュ化したパスワードに置き換えた安全なデータオブジェクトを作成
+    const secureUserData = {
+      ...body,
+      password: hashedPassword, // 平文パスワードをハッシュに上書き
+    };
+
+    // 既存の仮登録データがあれば一旦削除
     await docClient.send(new DeleteCommand({
       TableName: TEMP_USERS_TABLE,
       Key: { email: email },
@@ -60,13 +68,13 @@ export async function POST(request: Request) {
     // 有効期限（15分後：秒単位）
     const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60;
 
-    // 一時データテーブル (NexusTempUsers) に保存
+    // 一時データテーブル (NexusTempUsers) に安全なデータを保存
     const putCommand = new PutCommand({
       TableName: TEMP_USERS_TABLE,
       Item: {
         email: email,
         expiresAt: expiresAt,
-        userData: body,
+        userData: secureUserData,
       },
     });
 
