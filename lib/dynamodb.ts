@@ -2,15 +2,15 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
 const client = new DynamoDBClient({
-  region: "ap-northeast-1",
+  region: process.env.MY_AWS_REGION || "ap-northeast-1",
   credentials: {
-    accessKeyId: "PLACEHOLDER_ACCESS_KEY",
-    secretAccessKey: "PLACEHOLDER_SECRET_KEY",
+    accessKeyId: process.env.MY_AWS_ACCESS_KEY_ID || "",
+    secretAccessKey: process.env.MY_AWS_SECRET_ACCESS_KEY || "",
   },
 });
 
 export const docClient = DynamoDBDocumentClient.from(client);
 
 // テーブル名の定義
-export const TEMP_USERS_TABLE = "NexusTempUsers";
-export const USERS_TABLE = "NexusVisionUsers";
+export const TEMP_USERS_TABLE = process.env.TEMP_USERS_TABLE || "NexusTempUsers";
+export const USERS_TABLE = process.env.USERS_TABLE || "NexusVisionUsers";
