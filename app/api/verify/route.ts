@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '無効な認証リンクであるか、すでに有効期限が切れています。' }, { status: 400 });
     }
 
-    // 有効期限チェック（15分：秒単位で比較）
+    // 有効期限チェック
     const nowSec = Math.floor(Date.now() / 1000);
     if (tempUser.expiresAt && nowSec > tempUser.expiresAt) {
       await docClient.send(new DeleteCommand({
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const userData = tempUser.userData || {};
     const { password, name, furigana, birthdate, phone, address } = userData;
 
-    // 2. 本登録テーブル (NexusVisionUsers) へ保存
+    // 2. 本登録テーブルへ保存（statusを 'active' にしてログイン可能にする）
     const putCommand = new PutCommand({
       TableName: USERS_TABLE,
       Item: {
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
         phone: phone || '',
         address: address || '',
         password: password || '',
-        status: 'pending',
+        status: 'active', // ← これでログインできるようになります！
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -61,7 +61,6 @@ export async function POST(request: Request) {
       Key: { email: email },
     }));
 
-    // 4. 成功のJSONを返す（フロントエンド側に画面切り替えを任せる）
     return NextResponse.json({ success: true, message: '本登録が完了しました。' });
 
   } catch (error: any) {

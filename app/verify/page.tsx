@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 function VerifyContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const email = searchParams.get("email"); // emailパラメータを受け取るように修正
+  const email = searchParams.get("email");
 
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
@@ -20,8 +19,7 @@ function VerifyContent() {
       }
 
       try {
-        // バックエンドの認証API（またはDynamoDB連携用API）を呼び出す
-        // ※ここでは例として専用のAPIエンドポイント /api/verify を叩く設計にします
+        // バックエンドの認証API（/api/verify）を呼び出してステータスを active に更新
         const res = await fetch(`/api/verify?email=${encodeURIComponent(email)}`, {
           method: "POST",
         });
@@ -33,8 +31,10 @@ function VerifyContent() {
         }
 
         setStatus("success");
+        
+        // 2秒間アナウンス画面を表示したあと、指定のURLへ転送
         setTimeout(() => {
-          router.push("/?verified=true");
+          window.location.href = "https://mypage.nexus-vision.net/";
         }, 2000);
 
       } catch (err: any) {
@@ -45,7 +45,7 @@ function VerifyContent() {
     };
 
     processVerification();
-  }, [email, router]);
+  }, [email]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -62,7 +62,7 @@ function VerifyContent() {
               ✓
             </div>
             <h2 className="text-2xl font-extrabold text-gray-900 mb-2">登録が完了しました</h2>
-            <p className="text-sm text-gray-600">メールアドレスの認証と本登録が完了しました。まもなく画面が切り替わります。</p>
+            <p className="text-sm text-gray-600">メールアドレスの認証と本登録が完了しました。まもなくマイページへ移動します。</p>
           </div>
         )}
         {status === "error" && (
