@@ -2,10 +2,6 @@ import { Resend } from 'resend';
 
 export async function sendMfaEmail(toEmail: string, code: string) {
   const apiKey = "PLACEHOLDER_RESEND_KEY";
-  if (!apiKey) {
-    throw new Error('RESEND_API_KEY が設定されていません。');
-  }
-
   const resend = new Resend(apiKey);
   
   try {
@@ -34,16 +30,12 @@ export async function sendMfaEmail(toEmail: string, code: string) {
     return { success: true };
   } catch (err: any) {
     console.error('Resendメール送信例外:', err);
-    throw new Error('メールの送信に失敗しました: ' + (err.message || ''));
+    throw new Error('メールの送信イン失敗しました: ' + (err.message || ''));
   }
 }
 
 export async function sendRegistrationEmail(toEmail: string, name: string, verificationUrl: string) {
   const apiKey = "PLACEHOLDER_RESEND_KEY";
-  if (!apiKey) {
-    throw new Error('RESEND_API_KEY が設定されていません。');
-  }
-
   const resend = new Resend(apiKey);
 
   try {
