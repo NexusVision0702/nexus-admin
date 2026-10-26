@@ -1,27 +1,26 @@
 import { NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { docClient, USERS_TABLE } from '@/lib/dynamodb';
+import { DeleteCommand } from '@aws-sdk/lib-dynamodb';
 
 export async function POST(request: Request) {
   try {
-    const { uid } = await request.json();
+    const { email } = await request.json();
 
-    if (!uid) {
-      return NextResponse.json({ error: 'UIDが指定されていません。' }, { status: 400 });
+    if (!email) {
+      return NextResponse.json({ error: 'メールアドレスが指定されていません。' }, { status: 400 });
     }
 
-    // 1. Firebase Authentication からアカウントを削除
-    try {
-      await adminAuth.deleteUser(uid);
-    } catch (authError: any) {
-      console.warn('Firebase Authでの削除スキップまたはエラー:', authError.message);
-    }
+    // DynamoDB (NexusVisionUsers) からデータを削除
+    const deleteCommand = new DeleteCommand({
+      TableName: USERS_TABLE,
+      Key: { email: email },
+    });
 
-    // 2. Firestore などのデータベース側からデータを削除（必要に応じてコレクション名を調整）
-    await adminDb.collection('users').doc(uid).delete();
+    await docClient.send(deleteCommand);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'ユーザーを削除しました。' });
   } catch (error: any) {
     console.error('ユーザー削除エラー:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'ユーザーの削除に失敗しました: ' + (error.message || '') }, { status: 500 });
   }
 }

@@ -1,25 +1,21 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { db, auth } from "@/lib/firebase";
-import { collection, getDocs, deleteDoc, doc, query, orderBy, where, updateDoc, getDoc } from "firebase/firestore";
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from "firebase/auth";
 import Link from "next/link";
 
 interface UserData {
-  id: string;
+  email: string;
   name?: string;
   furigana?: string;
   birthdate?: string;
   phone?: string;
-  email?: string;
   address?: string;
   user_code?: string;
-  createdAt?: any;
+  createdAt?: string;
 }
 
 export default function AdminDashboard() {
-  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -33,23 +29,23 @@ export default function AdminDashboard() {
   const [mfaStep, setMfaStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
   const [pendingEmail, setPendingEmail] = useState("");
-  const [pendingPassword, setPendingPassword] = useState("");
-  const [targetAdminDocId, setTargetAdminDocId] = useState("");
 
   // 検索・並び替え用の状態
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
   // 自動ログアウト（15分 = 900,000ミリ秒）
-  const handleLogout = useCallback(async () => {
-    await signOut(auth);
+  const handleLogout = useCallback(() => {
+    setIsAuthenticated(false);
+    setMfaStep(false);
+    setPendingEmail("");
+    setPassword("");
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!isAuthenticated) return;
 
     let timeoutId: NodeJS.Timeout;
-
     const resetTimer = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
@@ -59,44 +55,29 @@ export default function AdminDashboard() {
     };
 
     const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart"];
-    events.forEach((event) => {
-      window.addEventListener(event, resetTimer);
-    });
-
+    events.forEach((event) => window.addEventListener(event, resetTimer));
     resetTimer();
 
     return () => {
       clearTimeout(timeoutId);
-      events.forEach((event) => {
-        window.removeEventListener(event, resetTimer);
-      });
+      events.forEach((event) => window.removeEventListener(event, resetTimer));
     };
-  }, [user, handleLogout]);
-
-  // 認証状態の監視
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        fetchUsers();
-      } else {
-        setLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+  }, [isAuthenticated, handleLogout]);
 
   // ユーザー一覧の取得
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const q = query(collection(db, "users"), orderBy("createdAt", sortOrder));
-      const snapshot = await getDocs(q);
-      const userList = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as UserData[];
-      setUsers(userList);
+      const res = await fetch("/api/admin/users");
+      const data = await res.json();
+
+      if (data.success) {
+        let fetchedUsers = data.users as UserData[];
+        if (sortOrder === "asc") {
+          fetchedUsers.reverse();
+        }
+        setUsers(fetchedUsers);
+      }
     } catch (err) {
       console.error("ユーザー取得エラー:", err);
     } finally {
@@ -105,10 +86,10 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (user) {
+    if (isAuthenticated) {
       fetchUsers();
     }
-  }, [sortOrder]);
+  }, [sortOrder, isAuthenticated]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
@@ -123,66 +104,25 @@ export default function AdminDashboard() {
     });
   }, [users, searchTerm]);
 
-  // 1. 社員番号とパスワードの検証 ＆ 6桁認証コードの生成・メール送信
+  // 1. 社員番号とパスワードの検証 ＆ MFAコード送信
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoggingIn(true);
 
     try {
-      const adminsRef = collection(db, "admins");
-      const q = query(adminsRef, where("emp_id", "==", empId.trim()));
-      const snapshot = await getDocs(q);
-
-      if (snapshot.empty) {
-        throw new Error("社員番号が見つかりません。");
-      }
-
-      const adminDoc = snapshot.docs[0];
-      const adminData = adminDoc.data();
-      const email = adminData.email;
-
-      if (!email) {
-        throw new Error("この社員番号にメールアドレスが紐付いていません。");
-      }
-
-      // パスワードが正しいかFirebase Authで一旦テスト検証
-      await signInWithEmailAndPassword(auth, email, password);
-      // 一旦ログイン状態になってしまうのを防ぐため、すぐに一度サインアウト
-      await signOut(auth);
-
-      // 6桁のランダムな認証コードを生成
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = Date.now() + 5 * 60 * 1000; // 有効期限5分
-
-      // Firestoreの admins ドキュメントにコードを一時保存
-      await updateDoc(doc(db, "admins", adminDoc.id), {
-        mfaCode: code,
-        mfaExpiresAt: expiresAt,
-      });
-
-      // API側が要求するパラメータ（email, name, verificationUrl）に準拠したリクエスト
-      const response = await fetch("/api/send-verification", {
+      const response = await fetch("/api/admin/auth", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email.trim(),
-          name: adminData.name || "管理者",
-          verificationUrl: `認証コード: ${code} (有効期限: 5分)`,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empId: empId.trim(), password }),
       });
 
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || "二段階認証メールの送信に失敗しました。");
+        throw new Error(result.error || "ログインに失敗しました。");
       }
 
-      // 状態を保持してMFA入力ステップへ移行
-      setPendingEmail(email);
-      setPendingPassword(password);
-      setTargetAdminDocId(adminDoc.id);
+      setPendingEmail(result.email);
       setMfaStep(true);
     } catch (err: any) {
       setError("ログイン失敗: " + (err.message || "認証エラーが発生しました"));
@@ -191,41 +131,31 @@ export default function AdminDashboard() {
     }
   };
 
-  // 2. メールで受け取った6桁コードの検証 ＆ 正式ログイン
+  // 2. 6桁コードの検証 ＆ ログイン完了
   const handleVerifyMfa = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoggingIn(true);
 
     try {
-      const adminDocRef = doc(db, "admins", targetAdminDocId);
-      const adminSnap = await getDoc(adminDocRef);
-
-      if (!adminSnap.exists()) {
-        throw new Error("管理者データが見つかりません。");
-      }
-
-      const data = adminSnap.data();
-      const storedCode = data.mfaCode;
-      const expiresAt = data.mfaExpiresAt;
-
-      if (!storedCode || storedCode !== verificationCode.trim()) {
-        throw new Error("認証コードが間違っています。");
-      }
-
-      if (Date.now() > expiresAt) {
-        throw new Error("認証コードの有効期限が切れています。もう一度ログインし直してください。");
-      }
-
-      // コード確認成功：使用済みコードをクリア
-      await updateDoc(adminDocRef, {
-        mfaCode: null,
-        mfaExpiresAt: null,
+      const response = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: "verify",
+          email: pendingEmail,
+          code: verificationCode.trim(),
+        }),
       });
 
-      // 正式にFirebase Authでログイン実行
-      await signInWithEmailAndPassword(auth, pendingEmail, pendingPassword);
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "認証コードの確認に失敗しました。");
+      }
+
+      setIsAuthenticated(true);
       setMfaStep(false);
+      fetchUsers();
     } catch (err: any) {
       setError("認証エラー: " + (err.message || "コードの確認に失敗しました。"));
     } finally {
@@ -233,28 +163,36 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteUser = async (id: string, name?: string) => {
-    if (!confirm(`【確認】\n${name || "このユーザー"}のデータを削除してもよろしいですか？\n\n※削除したデータは元に戻すことができません。`)) return;
+  const handleDeleteUser = async (email: string, name?: string) => {
+    if (!confirm(`【確認】\n${name || email} のデータを削除してもよろしいですか？\n\n※削除したデータは元に戻すことができません。`)) return;
     
     try {
-      await deleteDoc(doc(db, "users", id));
-      setUsers(users.filter((u) => u.id !== id));
-      alert("ユーザーデータを削除しました。");
+      const res = await fetch(`/api/admin/users?email=${encodeURIComponent(email)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setUsers(users.filter((u) => u.email !== email));
+        alert("ユーザーデータを削除しました。");
+      } else {
+        alert(data.error || "削除に失敗しました。");
+      }
     } catch (err) {
       console.error("削除エラー:", err);
-      alert("削除に失敗しました。権限がありません。");
+      alert("削除通信に失敗しました。");
     }
   };
 
-  // 未ログイン時（ログイン画面 or MFAメールコード入力画面）
-  if (!user) {
+  // 未認証時（ログイン画面 or MFAメールコード入力画面）
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
         <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-md">
-          <h1 className="text-xl font-bold text-gray-800 mb-6">
+          <h1 className="text-xl font-bold text-gray-800 mb-6 text-center">
             {mfaStep ? "メール二段階認証コードの入力" : "NexusVision 管理者ログイン"}
           </h1>
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+          {error && <p className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded">{error}</p>}
 
           {!mfaStep ? (
             <form onSubmit={handleLogin} className="space-y-4">
@@ -275,6 +213,7 @@ export default function AdminDashboard() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="パスワードを入力"
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                   required
                 />
@@ -284,20 +223,23 @@ export default function AdminDashboard() {
                 disabled={isLoggingIn}
                 className="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50"
               >
-                {isLoggingIn ? "送信中..." : "ログイン"}
+                {isLoggingIn ? "送信中..." : "次へ (認証コード送信)"}
               </button>
             </form>
           ) : (
             <form onSubmit={handleVerifyMfa} className="space-y-4">
-              <p className="text-sm text-gray-600">登録されているメールアドレス宛に送信された6桁の認証コードを入力してください。</p>
+              <p className="text-xs text-gray-600 mb-2">
+                登録されているメールアドレス宛に送信された6桁の認証コードを入力してください。
+              </p>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">認証コード</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">6桁の認証コード</label>
                 <input
                   type="text"
+                  maxLength={6}
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value)}
-                  placeholder="6桁のコード"
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="例: 123456"
+                  className="w-full px-3 py-2 border rounded-lg text-center tracking-widest text-lg font-bold focus:outline-none focus:ring-2 focus:ring-green-500"
                   required
                 />
               </div>
@@ -306,14 +248,14 @@ export default function AdminDashboard() {
                 disabled={isLoggingIn}
                 className="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 transition disabled:opacity-50"
               >
-                {isLoggingIn ? "確認中..." : "認証してログイン"}
+                {isLoggingIn ? "認証中..." : "ログインを完了する"}
               </button>
               <button
                 type="button"
                 onClick={() => setMfaStep(false)}
-                className="w-full text-gray-500 text-sm py-1 hover:underline text-center"
+                className="w-full text-gray-500 text-xs text-center mt-2 hover:underline"
               >
-                ログイン画面に戻る
+                ← ログイン画面に戻る
               </button>
             </form>
           )}
@@ -401,7 +343,7 @@ export default function AdminDashboard() {
               </thead>
               <tbody className="divide-y text-sm">
                 {filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-gray-50">
+                  <tr key={u.email} className="hover:bg-gray-50">
                     <td className="p-4">
                       <div className="font-bold text-gray-800">{u.name || "未設定"}</div>
                       <div className="text-xs text-gray-500">{u.furigana || ""}</div>
@@ -415,7 +357,7 @@ export default function AdminDashboard() {
                     <td className="p-4 text-right">
                       <button
                         type="button"
-                        onClick={() => handleDeleteUser(u.id, u.name)}
+                        onClick={() => handleDeleteUser(u.email, u.name)}
                         className="text-red-500 hover:text-red-700 text-xs font-bold border border-red-200 px-3 py-1 rounded transition hover:bg-red-50"
                       >
                         削除
