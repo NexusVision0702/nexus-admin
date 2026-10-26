@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { docClient, TEMP_USERS_TABLE } from "@/lib/dynamodb";
-import { PutCommand } from "@aws-sdk/lib-dynamodb";
+import { docClient, TEMP_USERS_TABLE, USERS_TABLE } from "@/lib/dynamodb";
+import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { sendMfaEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
@@ -11,13 +11,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "メールアドレスが指定されていません。" }, { status: 400 });
     }
 
-    // 6桁のランダムな認証コードを生成
+    // ★ 1. 本登録テーブル（USERS_TABLE）をチェックし、activeなユーザーのみ許可する
+    const userResult = await docClient.send(
+      new GetCommand({
+        TableName: USERS_TABLE,
+        Key: { email: email },
+      })
+    );
+
+    const user = userResult.Item;
+
+    if (!user || user.status !== "active") {
+      return NextResponse.json(
+        { error: "このメールアドレスは登録されていないか、本登録が完了していません。" },
+        { status: 400 }
+      );
+    }
+
+    // 2. 6桁のランダムな認証コードを生成
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     
     // 有効期限を15分（900秒後）に設定（秒単位）
     const expiresAt = Math.floor(Date.now() / 1000) + 900;
 
-    // NexusTempUsers テーブルにコードと有効期限を保存
+    // 3. 一時テーブル（TEMP_USERS_TABLE）にMFAコードを保存
     await docClient.send(
       new PutCommand({
         TableName: TEMP_USERS_TABLE,
@@ -29,7 +46,7 @@ export async function POST(request: Request) {
       })
     );
 
-    // Resend を使って実際にメールを送信
+    // 4. Resend を使って実際にメールを送信
     await sendMfaEmail(email, code);
 
     return NextResponse.json({ success: true, message: "認証コードを送信しました。" });
