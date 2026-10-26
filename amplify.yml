@@ -7,12 +7,13 @@ frontend:
     build:
       commands:
         - node -e 'const fs=require("fs"); let f=fs.readFileSync("lib/dynamodb.ts","utf8"); f=f.replace("PLACEHOLDER_ACCESS_KEY", process.env.MY_AWS_ACCESS_KEY_ID).replace("PLACEHOLDER_SECRET_KEY", process.env.MY_AWS_SECRET_ACCESS_KEY); fs.writeFileSync("lib/dynamodb.ts", f);'
+        - node -e 'const fs=require("fs"); let f=fs.readFileSync("lib/email.ts","utf8"); f=f.replace("PLACEHOLDER_RESEND_KEY", process.env.RESEND_API_KEY || ""); fs.writeFileSync("lib/email.ts", f);'
         - npm run build
-  artifacts:
-    baseDirectory: .next
-    files:
-      - '**/*'
-  cache:
-    paths:
-      - node_modules/**/*
-      - .next/cache/**/*
+artifacts:
+  baseDirectory: .next
+  files:
+    - '**/*'
+cache:
+  paths:
+    - node_modules/**/*
+    - .next/cache/**/*

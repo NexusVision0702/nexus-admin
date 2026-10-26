@@ -1,16 +1,15 @@
 import { Resend } from 'resend';
 
 export async function sendMfaEmail(toEmail: string, code: string) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = "PLACEHOLDER_RESEND_KEY";
   if (!apiKey) {
-    throw new Error('RESEND_API_KEY が環境変数に設定されていません。');
+    throw new Error('RESEND_API_KEY が設定されていません。');
   }
 
   const resend = new Resend(apiKey);
   
   try {
     const { error } = await resend.emails.send({
-      // ※ドメイン認証が未完了の場合は 'onboarding@resend.dev' を使用してください
       from: 'NexusVision <onboarding@resend.dev>',
       to: [toEmail],
       subject: '【NexusVision】管理者ログイン 認証コード',
@@ -40,16 +39,15 @@ export async function sendMfaEmail(toEmail: string, code: string) {
 }
 
 export async function sendRegistrationEmail(toEmail: string, name: string, verificationUrl: string) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = "PLACEHOLDER_RESEND_KEY";
   if (!apiKey) {
-    throw new Error('RESEND_API_KEY が環境変数に設定されていません。');
+    throw new Error('RESEND_API_KEY が設定されていません。');
   }
 
   const resend = new Resend(apiKey);
 
   try {
     const { error } = await resend.emails.send({
-      // ※ドメイン認証が未完了の場合は 'onboarding@resend.dev' を使用してください
       from: 'NexusVision株式会社 <onboarding@resend.dev>',
       to: [toEmail],
       subject: '【NexusVision】会員登録の確認（メールアドレス認証）',
