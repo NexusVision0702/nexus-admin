@@ -4,6 +4,17 @@ import { QueryCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import { sendRegistrationEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
+  // --- ▼▼▼ デバッグログ（本番の環境変数チェック用） ▼▼▼ ---
+  console.log("=== AWS ENV DEBUG START ===");
+  console.log("REGION:", process.env.MY_AWS_REGION);
+  console.log("ACCESS_KEY_ID exists:", !!process.env.MY_AWS_ACCESS_KEY_ID);
+  console.log("ACCESS_KEY_ID length:", process.env.MY_AWS_ACCESS_KEY_ID?.length);
+  console.log("ACCESS_KEY_ID prefix:", process.env.MY_AWS_ACCESS_KEY_ID?.substring(0, 4));
+  console.log("SECRET_ACCESS_KEY exists:", !!process.env.MY_AWS_SECRET_ACCESS_KEY);
+  console.log("SECRET_ACCESS_KEY length:", process.env.MY_AWS_SECRET_ACCESS_KEY?.length);
+  console.log("=== AWS ENV DEBUG END ===");
+  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
   try {
     const body = await request.json();
     
