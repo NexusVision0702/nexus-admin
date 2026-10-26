@@ -1,7 +1,13 @@
 import { Resend } from 'resend';
 
 export async function sendMfaEmail(toEmail: string, code: string) {
-  // 関数が実行されたタイミングで環境変数を読み込んで初期化する
+  // ★ ここに環境変数の状態を出力するデバッグログを追加
+  console.log("【環境変数デバッグ】RESEND_API_KEYの状態(MFA):", {
+    exists: !!process.env.RESEND_API_KEY,
+    length: process.env.RESEND_API_KEY ? process.env.RESEND_API_KEY.length : 0,
+    prefix: process.env.RESEND_API_KEY ? process.env.RESEND_API_KEY.substring(0, 4) : "なし"
+  });
+
   const resend = new Resend(process.env.RESEND_API_KEY);
   
   try {
@@ -35,7 +41,13 @@ export async function sendMfaEmail(toEmail: string, code: string) {
 }
 
 export async function sendRegistrationEmail(toEmail: string, name: string, verificationUrl: string) {
-  // 関数が実行されたタイミングで環境変数を読み込んで初期化する
+  // ★ ここにも環境変数の状態を出力するデバッグログを追加
+  console.log("【環境変数デバッグ】RESEND_API_KEYの状態(Registration):", {
+    exists: !!process.env.RESEND_API_KEY,
+    length: process.env.RESEND_API_KEY ? process.env.RESEND_API_KEY.length : 0,
+    prefix: process.env.RESEND_API_KEY ? process.env.RESEND_API_KEY.substring(0, 4) : "なし"
+  });
+
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   try {
