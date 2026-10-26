@@ -7,32 +7,14 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    // 受信したデータをサーバーのログに出力
-    console.log('【受信したリクエストボディ全データ】:', JSON.stringify(body, null, 2));
-
-    // フロントエンド側でどのようなキー名で送られてきても絶対に値を取り逃がさないようにする
-    const email = body.email || body.mail || body.userEmail || body.userData?.email;
-    const password = body.password || body.pass || body.pwd || body.userPassword || body.userData?.password;
-    
-    const name = body.name || body.userName || body.fullName || body.userData?.name ||
-      (body.lastName && body.firstName ? `${body.lastName} ${body.firstName}` : '') ||
-      (body.sei && body.mei ? `${body.sei} ${body.mei}` : '') ||
-      (body.kanjiLastName && body.kanjiFirstName ? `${body.kanjiLastName} ${body.kanjiFirstName}` : '');
-
-    const phone = body.phone || body.tel || body.phoneNumber || body.mobile || body.userData?.phone;
+    const email = body.email;
+    const password = body.password;
+    const name = body.name;
+    const phone = body.phone;
 
     // 必須項目のチェック
-    if (!email) {
-      return NextResponse.json({ error: 'メールアドレスが不足しています。' }, { status: 400 });
-    }
-    if (!password) {
-      return NextResponse.json({ error: 'パスワードが不足しています。' }, { status: 400 });
-    }
-    if (!name) {
-      return NextResponse.json({ error: 'お名前が不足しています。' }, { status: 400 });
-    }
-    if (!phone) {
-      return NextResponse.json({ error: '電話番号が不足しています。' }, { status: 400 });
+    if (!email || !password || !name || !phone) {
+      return NextResponse.json({ error: '必須項目が不足しています。' }, { status: 400 });
     }
 
     // 重複チェック: 本登録テーブル (NexusVisionUsers) ですでに email または phone が使われていないか確認
@@ -44,7 +26,7 @@ export async function POST(request: Request) {
     }));
 
     if (emailCheck.Items && emailCheck.Items.length > 0) {
-      return NextResponse.json({ error: 'このメールアドレスはすでに本登録されています。' }, { status: 400 });
+      return NextResponse.json({ error: 'このメールアドレスはすでに登録されています。' }, { status: 400 });
     }
 
     const phoneCheck = await docClient.send(new QueryCommand({
@@ -55,10 +37,10 @@ export async function POST(request: Request) {
     }));
 
     if (phoneCheck.Items && phoneCheck.Items.length > 0) {
-      return NextResponse.json({ error: 'この電話番号はすでに本登録されています。' }, { status: 400 });
+      return NextResponse.json({ error: 'この電話番号はすでに登録されています。' }, { status: 400 });
     }
 
-    // テスト時に仮登録データが残っていて進めなくならないよう、既存の仮登録データは自動でクリアして上書き許可する
+    // 既存の仮登録データがあれば一旦削除（テストのしやすさのため）
     await docClient.send(new DeleteCommand({
       TableName: TEMP_USERS_TABLE,
       Key: { email: email },
@@ -73,13 +55,7 @@ export async function POST(request: Request) {
       Item: {
         email: email,
         expiresAt: expiresAt,
-        userData: {
-          ...body,
-          email,
-          password,
-          name,
-          phone,
-        },
+        userData: body,
       },
     });
 
@@ -87,7 +63,7 @@ export async function POST(request: Request) {
 
     // 認証リンクの生成
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://account.nexus-vision.net';
-    const verificationUrl = `${baseUrl}/api/verify?email=${encodeURIComponent(email)}`;
+    const verificationUrl = `${baseUrl}/verify?email=${encodeURIComponent(email)}`;
 
     // 確認メールの送信
     await sendRegistrationEmail(email, name, verificationUrl);
