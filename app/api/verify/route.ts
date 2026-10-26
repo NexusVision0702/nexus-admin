@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { docClient, TEMP_USERS_TABLE, USERS_TABLE } from '@/lib/dynamodb';
 import { GetCommand, DeleteCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   try {
     const url = new URL(request.url);
     const email = url.searchParams.get('email');
@@ -61,9 +61,8 @@ export async function GET(request: Request) {
       Key: { email: email },
     }));
 
-    // 4. 登録完了画面へリダイレクト
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || url.origin;
-    return NextResponse.redirect(`${baseUrl}/?verified=true`);
+    // 4. 成功のJSONを返す（フロントエンド側に画面切り替えを任せる）
+    return NextResponse.json({ success: true, message: '本登録が完了しました。' });
 
   } catch (error: any) {
     console.error('本登録エラー:', error);

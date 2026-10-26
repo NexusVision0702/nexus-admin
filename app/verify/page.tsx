@@ -2,80 +2,35 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { db, auth } from "@/lib/firebase";
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
 
 function VerifyContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const uid = searchParams.get("uid");
+  const email = searchParams.get("email"); // emailパラメータを受け取るように修正
 
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const processVerification = async () => {
-      if (!uid) {
+      if (!email) {
         setStatus("error");
-        setErrorMessage("ユーザーIDが指定されていません。");
+        setErrorMessage("メールアドレスが指定されていません。");
         return;
       }
 
       try {
-        // 1. 一時データ (tempUsers) を取得
-        const tempRef = doc(db, "tempUsers", uid);
-        const tempSnap = await getDoc(tempRef);
+        // バックエンドの認証API（またはDynamoDB連携用API）を呼び出す
+        // ※ここでは例として専用のAPIエンドポイント /api/verify を叩く設計にします
+        const res = await fetch(`/api/verify?email=${encodeURIComponent(email)}`, {
+          method: "POST",
+        });
 
-        if (!tempSnap.exists()) {
-          setStatus("error");
-          setErrorMessage("無効な認証リンクであるか、すでに有効期限が切れています。");
-          return;
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "認証に失敗しました。");
         }
-
-        const userData = tempSnap.data();
-        const { email, password, name, lastName, firstName, lastNameKana, firstNameKana, furigana, birthdate, phone, address, emp_id } = userData;
-
-        // 2. Firebase Auth に本番ユーザーを作成 (クライアント側SDKを使用)
-        let targetUid = uid;
-        try {
-          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-          targetUid = userCredential.user.uid;
-        } catch (authErr: any) {
-          // すでにアカウントが存在する場合などはそのまま進める
-          console.warn("Auth作成スキップまたは既存:", authErr);
-        }
-
-        // 3. 正式なコレクションに保存 (admins または users)
-        if (emp_id) {
-          await setDoc(doc(db, "admins", targetUid), {
-            uid: targetUid,
-            emp_id: emp_id || "",
-            email: email,
-            name: name || "",
-            createdAt: serverTimestamp(),
-          });
-        } else {
-          await setDoc(doc(db, "users", targetUid), {
-            uid: targetUid,
-            lastName: lastName || "",
-            firstName: firstName || "",
-            name: name || "",
-            lastNameKana: lastNameKana || "",
-            firstNameKana: firstNameKana || "",
-            furigana: furigana || "",
-            birthdate: birthdate || "",
-            phone: phone || "",
-            email: email,
-            password: password || "", // ← パスワードを確実に保存
-            address: address || "",
-            emailVerified: true,
-            createdAt: serverTimestamp(),
-          });
-        }
-
-        // 4. 一時データを削除
-        await deleteDoc(tempRef);
 
         setStatus("success");
         setTimeout(() => {
@@ -90,7 +45,7 @@ function VerifyContent() {
     };
 
     processVerification();
-  }, [uid, router]);
+  }, [email, router]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
