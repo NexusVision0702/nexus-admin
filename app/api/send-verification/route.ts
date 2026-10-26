@@ -7,12 +7,21 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    // ★ブラウザから実際にどんなデータが送られてきているかをサーバーのログに出力する
-    console.log('【受信したリクエストボディ】:', body);
+    // 受信したデータをサーバーのログに出力
+    console.log('【受信したリクエストボディ】:', JSON.stringify(body, null, 2));
 
-    const { email, password, name, phone } = body;
+    // フロントエンド側でどのようなキー名で送られてきても安全に拾えるようにする
+    const email = body.email || body.mail || body.userEmail;
+    const password = body.password || body.pass || body.pwd || body.userPassword;
+    
+    const name = body.name || body.userName || body.fullName || 
+      (body.lastName && body.firstName ? `${body.lastName} ${body.firstName}` : '') ||
+      (body.sei && body.mei ? `${body.sei} ${body.mei}` : '') ||
+      (body.kanjiLastName && body.kanjiFirstName ? `${body.kanjiLastName} ${body.kanjiFirstName}` : '');
 
-    // どの項目が不足しているか詳細にエラーを返すようにする
+    const phone = body.phone || body.tel || body.phoneNumber || body.mobile;
+
+    // バリデーションチェック
     if (!email) {
       return NextResponse.json({ error: 'メールアドレスが不足しています。' }, { status: 400 });
     }
@@ -58,7 +67,13 @@ export async function POST(request: Request) {
       Item: {
         email: email,
         expiresAt: expiresAt,
-        userData: body, // 送られてきたデータをそのまま一時保存
+        userData: {
+          ...body,
+          email,
+          password,
+          name,
+          phone,
+        },
       },
     });
 
