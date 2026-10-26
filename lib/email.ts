@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 
 export async function sendMfaEmail(toEmail: string, code: string) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = "PLACEHOLDER_RESEND_KEY";
   if (!apiKey) {
     throw new Error('RESEND_API_KEY が設定されていません。');
   }
@@ -39,7 +39,7 @@ export async function sendMfaEmail(toEmail: string, code: string) {
 }
 
 export async function sendRegistrationEmail(toEmail: string, name: string, verificationUrl: string) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = "PLACEHOLDER_RESEND_KEY";
   if (!apiKey) {
     throw new Error('RESEND_API_KEY が設定されていません。');
   }
