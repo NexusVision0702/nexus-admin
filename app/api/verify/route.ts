@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     }
 
     const userData = tempUser.userData || {};
-    const { password, name, furigana, birthdate, phone, address } = userData;
+    const { password, name, furigana, birthdate, gender, phone, address } = userData; // ← gender を追加で取得
 
     // 2. 本登録テーブルへ保存（statusを 'active' にしてログイン可能にする）
     const putCommand = new PutCommand({
@@ -44,10 +44,11 @@ export async function POST(request: Request) {
         name: name || '',
         furigana: furigana || '',
         birthdate: birthdate || '',
+        gender: gender || '', // ← 本登録テーブルの保存項目に gender を追加！
         phone: phone || '',
         address: address || '',
         password: password || '',
-        status: 'active', // ← これでログインできるようになります！
+        status: 'active',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
