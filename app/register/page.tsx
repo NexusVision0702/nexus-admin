@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import TermsModal from "@/components/TermsModal";
 
-function SignupFormContent() {
+function MyPageEditContent() {
   const searchParams = useSearchParams();
   const [isVerified, setIsVerified] = useState(false);
 
@@ -285,7 +285,7 @@ function SignupFormContent() {
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleExecuteSignup}
-                className="w-1/2 py-2.5 px-4 border border-transparent rounded-md shadow-md text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 transition disabled:opacity-50 cursor-pointer"
+                className="w-1/2 py-2.5 px-4 border border-transparent rounded-md shadow-md text-sm font-bold text-white bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 transition disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? "送信中..." : "登録して認証メール送信"}
               </button>
@@ -412,7 +412,7 @@ function SignupFormContent() {
 
             <div className="pt-2 space-y-3">
               <label className={`flex items-start space-x-3 ${!hasOpenedTerms ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
-                <input type="checkbox" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} disabled={!hasOpenedTerms} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed flex-shrink-0" required />
+                <input type="checkbox" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} disabled={!hasOpenedTerms} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:cursor-not-allowed shrink-0" required />
                 <span className="text-sm text-gray-700 leading-relaxed">
                   <button type="button" onClick={handleOpenTermsModal} className="text-emerald-600 underline hover:text-emerald-800 font-medium focus:outline-none cursor-pointer">
                     利用規約・プライバシーポリシー
@@ -427,7 +427,7 @@ function SignupFormContent() {
               </label>
 
               <label className="flex items-start space-x-3 cursor-pointer">
-                <input type="checkbox" checked={notMinor} onChange={(e) => setNotMinor(e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer flex-shrink-0" required />
+                <input type="checkbox" checked={notMinor} onChange={(e) => setNotMinor(e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0" required />
                 <span className="text-sm text-gray-700 leading-relaxed">
                   わたしは未成年者ではありません
                   <span className="block text-xs text-gray-500 mt-0.5">(未成年の場合：法定代理人の許可が取れています)</span>
@@ -435,7 +435,7 @@ function SignupFormContent() {
               </label>
 
               <label className="flex items-start space-x-3 cursor-pointer">
-                <input type="checkbox" checked={notAntiSocial} onChange={(e) => setNotAntiSocial(e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer flex-shrink-0" required />
+                <input type="checkbox" checked={notAntiSocial} onChange={(e) => setNotAntiSocial(e.target.checked)} className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0" required />
                 <span className="text-sm text-gray-700 leading-relaxed">
                   暴力団等の反社会的勢力に該当せず、また将来にわたっても該当しないことを表明し、保証します
                 </span>
@@ -448,7 +448,7 @@ function SignupFormContent() {
                 disabled={!isFormValid}
                 className={`w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-md text-sm font-bold text-white transition ${
                   isFormValid
-                    ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 cursor-pointer"
+                    ? "bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 cursor-pointer"
                     : "bg-gray-300 cursor-not-allowed opacity-70"
                 }`}
               >
@@ -467,7 +467,7 @@ function SignupFormContent() {
 export default function SignupPage() {
   return (
     <Suspense fallback={<div className="text-center py-12">読み込み中...</div>}>
-      <SignupFormContent />
+      <MyPageEditContent />
     </Suspense>
   );
 }
