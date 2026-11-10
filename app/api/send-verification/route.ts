@@ -12,8 +12,9 @@ export async function POST(request: Request) {
     const password = body.password;
     const name = body.name;
     const phone = body.phone;
+    const gender = body.gender; // ← 性別を追加で受け取る
 
-    // 1. 必須項目のチェック
+    // 1. 必須項目のチェック (gender も必須にする場合は追加)
     if (!email || !password || !name || !phone) {
       return NextResponse.json({ error: '必須項目が不足しています。' }, { status: 400 });
     }
@@ -53,10 +54,11 @@ export async function POST(request: Request) {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // ハッシュ化したパスワードに置き換えた安全なデータオブジェクトを作成
+    // ハッシュ化したパスワードと性別（gender）を含めた安全なデータオブジェクトを作成
     const secureUserData = {
       ...body,
       password: hashedPassword, // 平文パスワードをハッシュに上書き
+      gender: gender || '',     // 性別を確実に含める
     };
 
     // 既存の仮登録データがあれば一旦削除
